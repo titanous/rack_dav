@@ -26,7 +26,7 @@ module RackDAV
       response = Rack::Response.new
 
       begin
-        controller = Controller.new(request, response, @options)
+        controller = Controller.new(request, response, @options.merge(env: env))
         controller.send(request.request_method.downcase)
 
       rescue HTTPStatus::Status => status
