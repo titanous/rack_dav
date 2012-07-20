@@ -69,15 +69,10 @@ module RackDAV
     end
 
     def delete
-      delete_recursive(resource, errors = [])
-
-      if errors.empty?
-        response.status = NoContent
-      else
-        multistatus do |xml|
-          response_errors(xml, errors)
-        end
+      map_exceptions do
+        resource.delete
       end
+      response.status = NoCentent
     end
 
     def mkcol
@@ -101,15 +96,11 @@ module RackDAV
 
       dest_existed = dest.exist?
 
-      copy_recursive(resource, dest, depth, errors = [])
-
-      if errors.empty?
-        response.status = dest_existed ? NoContent : Created
-      else
-        multistatus do |xml|
-          response_errors(xml, errors)
-        end
+      map_exceptions do
+        resource.copy(dest)
       end
+      
+      response.status = dest_existed ? NoContent : Created
     rescue URI::InvalidURIError => e
       raise BadRequest.new(e.message)
     end
@@ -130,16 +121,10 @@ module RackDAV
 
       raise Conflict if depth <= 1
 
-      copy_recursive(resource, dest, depth, errors = [])
-      delete_recursive(resource, errors)
-
-      if errors.empty?
-        response.status = dest_existed ? NoContent : Created
-      else
-        multistatus do |xml|
-          response_errors(xml, errors)
-        end
+      map_exceptions do
+        resource.move(dest)
       end
+      response.status = dest_existed ? NoContent : Created
     rescue URI::InvalidURIError => e
       raise BadRequest.new(e.message)
     end
@@ -246,39 +231,6 @@ module RackDAV
         end
       end
 
-      def delete_recursive(res, errors)
-        for child in res.children
-          delete_recursive(child, errors)
-        end
-
-        begin
-          map_exceptions { res.delete } if errors.empty?
-        rescue Status
-          errors << [res.path, $!]
-        end
-      end
-
-      def copy_recursive(res, dest, depth, errors)
-        map_exceptions do
-          if dest.exist?
-            if overwrite
-              delete_recursive(dest, errors)
-            else
-              raise PreconditionFailed
-            end
-          end
-          res.copy(dest)
-        end
-      rescue Status
-        errors << [res.path, $!]
-      else
-        if depth > 0
-          for child in res.children
-            dest_child = dest.child(child.name)
-            copy_recursive(child, dest_child, depth - 1, errors)
-          end
-        end
-      end
 
       def map_exceptions
         yield
