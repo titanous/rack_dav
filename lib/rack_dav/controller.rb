@@ -72,7 +72,7 @@ module RackDAV
       map_exceptions do
         resource.delete
       end
-      response.status = NoCentent
+      response.status = NoContent
     end
 
     def mkcol
